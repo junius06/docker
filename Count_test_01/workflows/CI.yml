@@ -1,0 +1,117 @@
+name: CI
+
+on: 
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+
+
+
+env: 
+  # DOCKER
+  IMAGE_NAME: "countup"
+  DOCKER_REPO: "countup"
+  # AZURE
+  SUBSCRIPTION: "PROD"
+  RESOURCE_GROUP: "PROD"
+  NETWORK_SG: "Services"
+
+
+#############################
+#jobs:
+#  if_merged:
+#    if: github.event.pull_request.merged == true
+#    merge가 발생하면 job을 실행한다.
+############ JOB ############
+
+jobs:
+  Docker-Build-and-Push: 
+    runs-on: 
+      labels: self-hosted
+
+    steps:
+    # docker QEMU 정적 바이너리 설치
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2.2.0
+
+    # docker buildx 설정
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v2.6.0
+
+    # docker image 빌드하기 위한 dockerhub 계정으로 로그인
+    - name: Login to DockerHub
+      uses: docker/login-action@v2.2.0
+      with: 
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # buildx로 docker 이미지를 빌드하고 푸시
+    - name: Build and push
+      id: docker_build
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
+        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_REPO }}:buildcache
+        cache-to: type=inline
+
+    - name: Image digest
+      run: echo ${{ steps.docker_build.outputs.digest }}
+
+
+  Telegram-Build-Message: 
+    if: ${{ always() }}
+    needs: Docker-Build-and-Push
+    runs-on: 
+      labels: self-hosted
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # 빌드 성공 메세지 발송
+    - name: Send Build Success Message
+      uses: appleboy/telegram-action@master
+      if: ${{ needs.Docker-Build-and-Push.result == 'success' }}
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: | 
+          코드가 commit 되었습니다. - ${{ github.actor }}
+          Status: ✅ **Success**
+          Commit message: ${{ github.event.commits[0].message }}
+          [Commit-Link] (https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+    # 빌드 실패 메세지 발송
+    - name: Send Build Failure Message
+      uses: appleboy/telegram-action@master
+      if: ${{ needs.Docker-Build-and-Push.result == 'failure' }} 
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: |
+          코드가 commit 되었습니다. - ${{ github.actor }}
+          Status: ❌ **Failure**
+          Commit message: ${{ github.event.commits[0].message }}
+          Error message: 
+          [Commit-Link] (https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+    # 빌드 취소 메세지 발송
+    - name: Send Build cancelled Message
+      uses: appleboy/telegram-action@master
+      if: ${{ needs.Docker-Build-and-Push.result == 'cancelled' }}  
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: |
+          코드가 commit 되었습니다. - ${{ github.actor }}
+          Status: ❗️ **Cancelled**
+          Commit message: ${{ github.event.commits[0].message }}
+          [Commit-Link] (https://github.com/${{ github.repository }}/commit/${{github.sha}})

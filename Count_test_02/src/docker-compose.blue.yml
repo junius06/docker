@@ -1,0 +1,11 @@
+version: "3.5"
+services:
+  redis-server:
+    image: "redis"
+    restart: always
+  count-app:
+    image: "junius06/countup:latest"
+    container_name: countup-blue
+    restart: unless-stopped
+    ports:
+      - "8888:8080"

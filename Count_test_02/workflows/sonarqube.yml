@@ -1,0 +1,33 @@
+name: Sonarqube
+
+on: push
+
+jobs:
+  code_analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout repository on branch: ${{ github.REF }}'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.HEAD_REF }}
+          fetch-depth: 0
+
+      - name: Run an analysis of the ${{ github.REF }} branch ${{ github.BASE_REF }} base
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=countup
+            -Dsonar.sources=.
+
+# 코드 스멜, 악성 등 검출이 없을 경우, 다음 workflows(CICD) 진행
+# 코드 스멜, 악성 등 검출될 경우, telegram으로 alert만 발송
+
+
+
+
+### Reference ###
+# https://github.com/SonarSource/sonarqube-scan-action

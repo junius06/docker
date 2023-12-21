@@ -1,0 +1,40 @@
+name: Jira Connect
+
+on: 
+  push:
+    branches: [ "main" ]
+
+# JIRA Ticket 이동
+
+jobs: 
+  build: 
+    runs-on: ubuntu-latest
+    name: Jira Example
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Login
+      uses: atlassian/gajira-login@v3
+      env: 
+        JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+        JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+ 
+# 로그인은 성공~~
+# 이슈 생성 실패!!
+# project 'DevOps Test' not found
+
+    - name: Jira Create Issue
+      id: create
+      uses: atlassian/gajira-create@v3
+      with: 
+        project: DOT
+        issuetype: CI/CD
+        summary: CI/CD completed for ${{ github.repository }}
+        description: CI/CD Result
+
+    - name: Log created issue
+      run: echo "Issue ${{ steps.create.outputs.issue }} was created"
+
+# JIRA API ID TOKEN 생성 - https://id.atlassian.com/manage-profile/security/api-tokens

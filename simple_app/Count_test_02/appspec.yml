@@ -1,0 +1,19 @@
+version: 0.0
+os: linux
+
+files:
+  - source: /src
+    destination: ~/app
+    overwrite: yes
+    
+permissions:
+  - object: ~/app
+    owner: $USER
+    group: $USER
+    mode: 755
+
+hooks:
+  AfterInstall:
+    - location: deploy.sh
+      timeout: 60
+      runas: root

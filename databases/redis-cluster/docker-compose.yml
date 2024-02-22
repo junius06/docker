@@ -1,0 +1,45 @@
+version: "3.9"
+services:
+  ## Redis Clustering
+  # redis 띄우기 전, redis.conf/redis1.conf/redis2.conf 파일생성 및 설정 필요
+  # docker exec -it redis-primary redis-cli 명령어를 통해 클러스터 상태 확인
+  redis-cluster:
+    platform: linux/x86_64 # m1 MacOS의 경우
+    image: redis
+    container_name: redis-node0
+    volumes:
+      - ./redis0.conf:/usr/local/etc/redis/redis0.conf
+    command: redis-server /usr/local/etc/redis/redis0.conf
+    ports:
+      - 6379:6379
+      - 6380:6380
+      - 6381:6381
+
+  redis-node-1:
+    network_mode: "service:redis-cluster"
+    platform: linux/x86_64
+    image: redis
+    container_name: redis-node1
+    volumes:
+      - ./redis1.conf:/usr/local/etc/redis/redis1.conf
+    command: redis-server /usr/local/etc/redis/redis1.conf
+
+  redis-node-2:
+    network_mode: "service:redis-cluster"
+    platform: linux/x86_64
+    image: redis
+    container_name: redis-node2
+    volumes:
+      - ./redis2.conf:/usr/local/etc/redis/redis2.conf
+    command: redis-server /usr/local/etc/redis/redis2.conf
+
+  redis-cluster-entry:
+    network_mode: "service:redis-cluster"
+    platform: linux/x86_64
+    image: redis
+    container_name: redis-cluster-entry
+    command: redis-cli --cluster create 127.0.0.1:6379 127.0.0.1:6380 127.0.0.1:6381 --cluster-yes
+    depends_on:
+      - redis-cluster
+      - redis-node-1
+      - redis-node-2
